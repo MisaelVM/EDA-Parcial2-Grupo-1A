@@ -24,6 +24,11 @@ namespace UnityTemplateProjects
 		void Start()
 		{
 			_octree = new Octree();
+			_octree.MaxDepth = initialDepth;
+
+			for (int j = 0; j < noiseSource.height; ++j)
+				for (int i = 0; i < noiseSource.width; ++i)
+					_octree.AddColor(noiseSource.GetPixel(i, j));
 
 			if (noiseSource.width != Mathf.Pow(2f, initialDepth) || noiseSource.height != Mathf.Pow(2f, initialDepth))
 				return;
@@ -36,8 +41,8 @@ namespace UnityTemplateProjects
 				{
 					Color pixel = noiseSource.GetPixel(i, j);
 					float mean_color = (pixel.r + pixel.g + pixel.b) / 3;
-					float height = (mean_color - 0.5f) / 4.0f;
-					for (var y = -.5f; y <= height; y += inc)
+					float height = (mean_color - 0.5f) / 2.0f;
+					for (var y = -.25f; y <= height; y += inc)
 						_octree.SetVoxel(new Vector3(x, y, z), initialDepth, noiseSource.GetPixel(i, j), new int[0]);
 					z += inc;
 				}

@@ -1246,9 +1246,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8534589ed591a3c4c8905011ebc912a6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  noiseSource: {fileID: 2800000, guid: 8042aa5be4f495645a925168c6c2c868, type: 3}
+  noiseSource: {fileID: 2800000, guid: c5a2bebfa8e618e4f8b1c9f4d902f8b5, type: 3}
   quickPlace: 0
-  initialDepth: 9
+  initialDepth: 6
   octreeObj: {fileID: 204897502}
   selectionCube: {fileID: 1810349936}
   material: {fileID: 2100000, guid: 01a5bf5c32c507d4cbd6064c81e3eac0, type: 2}

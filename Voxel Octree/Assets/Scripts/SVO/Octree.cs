@@ -8,6 +8,140 @@ namespace SVO
 {
 	public class Octree : IDisposable
 	{
+		private static int maxDepth;
+
+		public int MaxDepth
+        {
+			set { 
+				maxDepth = value;
+				levels = new List<OCQ>[maxDepth];
+				for (int i = 0; i < maxDepth; ++i)
+					levels[i] = new List<OCQ>();
+				root = new OCQ(0, this);
+			}
+		}
+
+		private OCQ root;
+
+		private List<OCQ>[] levels;
+
+		private class OCQ
+        {
+			private Color color;
+			private int pixelCount;
+			private int paletteIndex;
+			private OCQ[] children;
+
+			public OCQ(int level, Octree parent)
+            {
+				color = new Color(0, 0, 0);
+				pixelCount = 0;
+				paletteIndex = 0;
+				children = new OCQ[8];
+
+				if (level < Octree.maxDepth - 1)
+					parent.addLevelNode(level, this);
+            }
+
+			public int PaletteIndex
+            {
+				get { return paletteIndex; }
+				set { paletteIndex = value; }
+            }
+
+			public bool isLeaf()
+            {
+				return pixelCount > 0;
+            }
+
+			private void getLeafNodes(ref List<OCQ> leafNodes)
+            {
+				foreach (var node in children)
+					if (node != null)
+						if (node.isLeaf())
+							leafNodes.Add(node);
+						else
+							node.getLeafNodes(ref leafNodes);
+            }
+
+			public List<OCQ> getLeafNodes()
+            {
+				List<OCQ> leafNodes = new List<OCQ>();
+				getLeafNodes(ref leafNodes);
+				return leafNodes;
+            }
+
+			public int getNodesPixelCount()
+            {
+				int sumCount = pixelCount;
+
+				foreach (var node in children)
+					if (node != null)
+						sumCount += pixelCount;
+
+				return sumCount;
+            }
+
+			public void addColor(Color color, int level, Octree parent)
+            {
+				if (level >= Octree.maxDepth)
+                {
+					this.color += color;
+					return;
+                }
+				int index = getColorIndexForLevel(color, level);
+				if (children[index] == null)
+					children[index] = new OCQ(level, parent);
+				children[index].addColor(color, level + 1, parent);
+            }
+
+			public int getPaletteIndex(Color color, int level)
+            {
+				if (isLeaf())
+					return paletteIndex;
+				int index = getColorIndexForLevel(color, level);
+				if (children[index] != null)
+					return children[index].getPaletteIndex(color, level + 1);
+				else
+					foreach (var node in children)
+						if (node != null)
+							return node.getPaletteIndex(color, level + 1);
+				return paletteIndex;
+            }
+
+			public int removeLeaves()
+            {
+				int result = 0;
+				foreach (var node in children)
+					if (node != null)
+                    {
+						color += node.color;
+						pixelCount += node.pixelCount;
+						++result;
+                    }
+				return result - 1;
+            }
+
+			public int getColorIndexForLevel(Color color, int level)
+            {
+				int index = 0;
+				int mask = 0x80 >> level;
+				if (((int)(color.r * 255) & mask) != 0)
+					index |= 4;
+				if (((int)(color.g * 255) & mask) != 0)
+					index |= 2;
+				if (((int)(color.b * 255) & mask) != 0)
+					index |= 1;
+				return index;
+			}
+
+			public Color getColor()
+            {
+				Color normColor = color / pixelCount;
+				return normColor;
+            }
+        }
+
 		private static Texture3D tempTex = null;
 		
 		public Texture3D Data { get; private set; }
@@ -37,6 +171,61 @@ namespace SVO
 			_ptrStack[0] = 0;
 			Data = null;
 		}
+
+		List<OCQ> getLeaves()
+        {
+			return root.getLeafNodes();
+        }
+
+		void addLevelNode(int level, OCQ node)
+        {
+			levels[level].Add(node);
+        }
+
+		public void AddColor(Color color)
+        {
+			root.addColor(color, 0, this);
+        }
+
+		public List<Color> makePalette(int colorCount)
+        {
+			List<Color> palette = new List<Color>();
+			int paletteIndex = 0;
+			int leafCount = getLeaves().Count();
+
+			for (int level = Octree.maxDepth - 1; level >= 0; --level)
+            {
+				if (levels[level] != null)
+                {
+					foreach (var node in levels[level])
+                    {
+						leafCount -= node.removeLeaves();
+						if (leafCount <= colorCount)
+							break;
+                    }
+					if (leafCount <= colorCount)
+						break;
+					levels[level].Clear();
+                }
+            }
+
+			foreach (var node in getLeaves())
+            {
+				if (paletteIndex >= colorCount)
+					break;
+
+				if (node.isLeaf())
+					palette.Add(node.getColor());
+				node.PaletteIndex = paletteIndex;
+				++paletteIndex;
+            }
+			return palette;
+        }
+
+		public int getPaletteIndex(Color color)
+        {
+			return root.getPaletteIndex(color, 0);
+        }
 		
 		/// <summary>
 		/// Edits the voxel at some position with depth and attributes data.
